@@ -102,10 +102,12 @@ if extend > 1:
 
 # Save txt file
 if not args.no_save:
+    file_name, file_extension = os.path.splitext(os.path.basename(input_file))
+    output_file_path = os.path.join(output_dir, file_name)
     file_name = (
-        f"noise_ratio_{noise_ratio}.txt"
+        f"{file_name}_noise_ratio{extend}{file_extension}"
         if seed is None
-        else f"noise_ratio_{noise_ratio}_with_seed_{seed}.txt"
+        else f"{file_name}_noise_ratio{extend}_with_seed_{seed}{file_extension}"
     )
     output_file_path = os.path.join(output_dir, file_name)
 
