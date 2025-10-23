@@ -30,9 +30,14 @@ parser.add_argument(
     "--seed", "-s", type=int, default=None, help="Random seed (optional)"
 )
 parser.add_argument(
+    "--no-save",
+    action="store_true",
+    help="Do not save outputs.",
+)
+parser.add_argument(
     "--no-show",
     action="store_true",
-    help="Do not display figures interactively; only save outputs.",
+    help="Do not display figures interactively.",
 )
 args = parser.parse_args()
 
@@ -79,27 +84,68 @@ if remainder != 0:
     )
 
 print(f"Total frames found: {num_frames}")
-
-file_name = (
-    f"noise_ratio_{noise_ratio}.txt"
-    if seed is None
-    else f"noise_ratio_{noise_ratio}_with_seed_{seed}.txt"
-)
-output_file_path = os.path.join(output_dir, file_name)
-
-#  Split into frames
 frames = np.array(binary_values[: num_frames * frame_size], dtype=int)
-frames2d = frames.reshape(num_frames, frame_size)
-np.savetxt(output_file_path, frames2d, fmt="%d", delimiter=" ")
+
+if not args.no_save:
+    file_name = (
+        f"noise_ratio_{noise_ratio}.txt"
+        if seed is None
+        else f"noise_ratio_{noise_ratio}_with_seed_{seed}.txt"
+    )
+    output_file_path = os.path.join(output_dir, file_name)
+
+    #  Split into frames
+    frames2d = frames.reshape(num_frames, frame_size)
+    np.savetxt(output_file_path, frames2d, fmt="%d", delimiter=" ")
+    print(f"Event stream has been saved to {output_file_path}")
 
 #  Visualization
 frames = frames.reshape((num_frames, channels, height, width))
+
 if not args.no_show:
-    for i in range(num_frames):
-        fig, axes = plt.subplots(1, channels, figsize=(8, 4))
+    import matplotlib.pyplot as plt
+
+    fig, axes = plt.subplots(1, channels, figsize=(8, 4))
+    imgs = []
+
+    # Initialize each channel subplot
+    for ch in range(channels):
+        img = axes[ch].imshow(frames[0, ch], cmap="gray", interpolation="nearest")
+        axes[ch].set_title(f"Frame 0, Channel {ch}")
+        axes[ch].axis("off")
+        imgs.append(img)
+
+    plt.tight_layout()
+
+    # Store current frame index
+    current_idx = {"i": 0}
+
+    def update_frame(i):
+        """Update all subplots to show frame i"""
         for ch in range(channels):
-            axes[ch].imshow(frames[i, ch], cmap="gray", interpolation="nearest")
+            imgs[ch].set_data(frames[i, ch])
             axes[ch].set_title(f"Frame {i}, Channel {ch}")
-            axes[ch].axis("off")
-        plt.tight_layout()
-        plt.show()
+        fig.canvas.draw_idle()
+
+    def on_key(event):
+        """Allow ← → navigation with keyboard"""
+        if event.key == "right":
+            current_idx["i"] = (current_idx["i"] + 1) % num_frames
+            update_frame(current_idx["i"])
+        elif event.key == "left":
+            current_idx["i"] = (current_idx["i"] - 1) % num_frames
+            update_frame(current_idx["i"])
+
+    def on_scroll(event):
+        """Scroll wheel also navigates frames"""
+        if event.button == "up":
+            current_idx["i"] = (current_idx["i"] + 1) % num_frames
+        elif event.button == "down":
+            current_idx["i"] = (current_idx["i"] - 1) % num_frames
+        update_frame(current_idx["i"])
+
+    # Connect events
+    fig.canvas.mpl_connect("key_press_event", on_key)
+    fig.canvas.mpl_connect("scroll_event", on_scroll)
+
+    plt.show()
