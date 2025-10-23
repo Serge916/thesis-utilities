@@ -27,6 +27,13 @@ parser.add_argument(
     help="Probability each pixel becomes 1 via noise (0..1). Default: 0.0",
 )
 parser.add_argument(
+    "--extend-dataset",
+    "-e",
+    type=int,
+    default=1,
+    help="Extends the dataset by placing multiplying the frames. Default: 1",
+)
+parser.add_argument(
     "--seed", "-s", type=int, default=None, help="Random seed (optional)"
 )
 parser.add_argument(
@@ -45,6 +52,7 @@ input_file = args.input
 output_dir = args.output_dir
 noise_ratio = args.noise_ratio
 seed = args.seed
+extend = args.extend_dataset
 
 
 # Clamp noise_ratio into [0,1]
@@ -85,7 +93,14 @@ if remainder != 0:
 
 print(f"Total frames found: {num_frames}")
 frames = np.array(binary_values[: num_frames * frame_size], dtype=int)
+frames = frames.reshape((num_frames, channels, height, width))
 
+# Extension
+if extend > 1:
+    # duplicate every full 8-frame chunk
+    print("Extension not implemented yet")
+
+# Save txt file
 if not args.no_save:
     file_name = (
         f"noise_ratio_{noise_ratio}.txt"
@@ -99,9 +114,8 @@ if not args.no_save:
     np.savetxt(output_file_path, frames2d, fmt="%d", delimiter=" ")
     print(f"Event stream has been saved to {output_file_path}")
 
-#  Visualization
-frames = frames.reshape((num_frames, channels, height, width))
 
+#  Visualization
 if not args.no_show:
     import matplotlib.pyplot as plt
 
