@@ -27,11 +27,10 @@ parser.add_argument(
     help="Probability each pixel becomes 1 via noise (0..1). Default: 0.0",
 )
 parser.add_argument(
-    "--extend-dataset",
-    "-e",
-    type=int,
-    default=1,
-    help="Extends the dataset by placing multiplying the frames. Default: 1",
+    "--mask",
+    "-m",
+    default=None,
+    help="Apply a mask on top of the frames.",
 )
 parser.add_argument(
     "--seed", "-s", type=int, default=None, help="Random seed (optional)"
@@ -52,7 +51,6 @@ input_file = args.input
 output_dir = args.output_dir
 noise_ratio = args.noise_ratio
 seed = args.seed
-extend = args.extend_dataset
 
 
 # Clamp noise_ratio into [0,1]
@@ -95,19 +93,22 @@ print(f"Total frames found: {num_frames}")
 frames = np.array(binary_values[: num_frames * frame_size], dtype=int)
 frames = frames.reshape((num_frames, channels, height, width))
 
-# Extension
-if extend > 1:
-    # duplicate every full 8-frame chunk
-    print("Extension not implemented yet")
+# Apply mask
+if args.mask:
+    with open(args.mask, "r") as f:
+        mask_data = f.read().split()
+    mask_data = np.array(mask_data, dtype=int)
+    mask_data = np.reshape(mask_data, (width, height))
+    frames = np.bitwise_or(frames, mask_data[None, None, :, :])
 
 # Save txt file
 if not args.no_save:
     file_name, file_extension = os.path.splitext(os.path.basename(input_file))
     output_file_path = os.path.join(output_dir, file_name)
     file_name = (
-        f"{file_name}_noise_ratio{extend}{file_extension}"
+        f"{file_name}_noise_ratio_{noise_ratio}{file_extension}"
         if seed is None
-        else f"{file_name}_noise_ratio{extend}_with_seed_{seed}{file_extension}"
+        else f"{file_name}_noise_ratio_{noise_ratio}_with_seed_{seed}{file_extension}"
     )
     output_file_path = os.path.join(output_dir, file_name)
 
