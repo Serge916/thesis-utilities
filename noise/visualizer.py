@@ -67,7 +67,9 @@ frame_size = channels * height * width  # 2 * 128 * 128 = 32768
 os.makedirs(output_dir, exist_ok=True)
 #  Read binary values
 with open(input_file, "r") as f:
+    # raw_data = f.read().split()
     raw_data = f.read().split()
+
 
 # Convert to integers (ignore invalid values)
 original_values = [int(x) for x in raw_data if x in ("0", "1")]
@@ -127,7 +129,9 @@ if not args.no_show:
 
     # Initialize each channel subplot
     for ch in range(channels):
-        img = axes[ch].imshow(frames[0, ch], cmap="gray", interpolation="nearest")
+        img = axes[ch].imshow(
+            frames[0, ch], cmap="gray", interpolation="nearest", vmin=0, vmax=1
+        )
         axes[ch].set_title(f"Frame 0, Channel {ch}")
         axes[ch].axis("off")
         imgs.append(img)
