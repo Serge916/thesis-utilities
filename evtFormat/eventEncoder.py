@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Encode an event (Prophesee EVT 2.1 format) into a 64-bit integer.
 
@@ -12,9 +11,6 @@ Bit layout (MSB..LSB):
 """
 
 import argparse
-
-
-EVT_NEG_TYPE = 0b0000  # fixed for EVT_NEG
 
 
 def encode_evt(
