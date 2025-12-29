@@ -36,7 +36,7 @@ def evt_polarity_word(p: int, time_low: int, x: int, y: int) -> int:
     )
 
 
-def aedat4_to_evt21_hex(aedat4_path: str, evt21_hex_path: str):
+def aedat4_to_evt21_hex(aedat4_path: str, evt21_hex_path: str, rescale: bool):
     """
     Convert AEDAT4 events to EVT2.1 as ASCII hex:
       - One 64-bit EVT word per line
@@ -54,8 +54,15 @@ def aedat4_to_evt21_hex(aedat4_path: str, evt21_hex_path: str):
             for e in batch:
                 # dv-processing bindings in your setup expose getters as methods
                 t = int(e.timestamp())
-                x = int(e.x())
-                y = int(e.y())
+                if rescale:
+                    print("RESCALE")
+                    x = int(e.x()) * 4 + 384
+                    y = int(e.y()) * 4 + 104
+                else:
+                    print("NOT RESCALE")
+                    x = int(e.x())
+                    y = int(e.y())
+
                 p = 1 if bool(e.polarity()) else 0
 
                 time_high = t >> 6
@@ -87,6 +94,15 @@ def main():
         help="Path to output EVT21. "
         "If omitted, '.evt' is added as extenstion to the input filename.",
     )
+    parser.add_argument(
+        "-r", "--rescale", default=True, action=argparse.BooleanOptionalAction
+    )
+
+    parser.add_argument(
+        default=False,
+        type=bool,
+        help="Rescale to meet the output format of IMX636.",
+    )
     args = parser.parse_args()
 
     input_path = args.input
@@ -97,10 +113,7 @@ def main():
         base, ext = os.path.splitext(input_path)
         output_path = f"{base}{'.evt'}"
 
-    aedat4_to_evt21_hex(
-        input_path,
-        output_path,
-    )
+    aedat4_to_evt21_hex(input_path, output_path, args.rescale)
     print(f"Wrote {output_path}")
 
 
