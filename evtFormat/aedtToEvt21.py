@@ -55,11 +55,9 @@ def aedat4_to_evt21_hex(aedat4_path: str, evt21_hex_path: str, rescale: bool):
                 # dv-processing bindings in your setup expose getters as methods
                 t = int(e.timestamp())
                 if rescale:
-                    print("RESCALE")
                     x = int(e.x()) * 4 + 384
                     y = int(e.y()) * 4 + 104
                 else:
-                    print("NOT RESCALE")
                     x = int(e.x())
                     y = int(e.y())
 
@@ -94,11 +92,12 @@ def main():
         help="Path to output EVT21. "
         "If omitted, '.evt' is added as extenstion to the input filename.",
     )
-    parser.add_argument(
-        "-r", "--rescale", default=True, action=argparse.BooleanOptionalAction
-    )
 
     parser.add_argument(
+        "-r",
+        "--rescale",
+        # default=True,
+        action=argparse.BooleanOptionalAction,
         default=False,
         type=bool,
         help="Rescale to meet the output format of IMX636.",
@@ -112,6 +111,8 @@ def main():
     else:
         base, ext = os.path.splitext(input_path)
         output_path = f"{base}{'.evt'}"
+
+    print("Running!")
 
     aedat4_to_evt21_hex(input_path, output_path, args.rescale)
     print(f"Wrote {output_path}")
