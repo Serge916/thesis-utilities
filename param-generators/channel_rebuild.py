@@ -1,13 +1,13 @@
 from pathlib import Path
-import sys
+import argparse
+import numpy as np
+import matplotlib.pyplot as plt
 
-MAX_ROWS = 128
+frame_height = 128
 MAX_CHANNELS = 256
 
-# Default interpretation:
-# - bits 15..9  = row   (7 bits)
-# - bit 8       = unused/reserved
-# - bits 7..0   = channel (8 bits)
+# bits 15..8 = row
+# bits 7..0  = channel
 ROW_SHIFT = 8
 ROW_MASK = 0x7F
 CHANNEL_MASK = 0xFF
@@ -20,16 +20,9 @@ def parse_metadata(meta_str: str) -> tuple[int, int]:
     return row, channel
 
 
-def rebuild_frames(
-    input_file: str, output_dir: str, fill_missing_with_zeros: bool = True
-):
+def read_frames(input_file: str) -> tuple[dict[int, dict[int, str]], int]:
     input_path = Path(input_file)
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
-
-    # channel -> {row -> bitstring}
     frames: dict[int, dict[int, str]] = {}
-
     expected_width = None
 
     with input_path.open("r", encoding="utf-8") as f:
@@ -56,9 +49,9 @@ def rebuild_frames(
 
             row, channel = parse_metadata(meta_str)
 
-            if not (0 <= row < MAX_ROWS):
+            if not (0 <= row < frame_height):
                 raise ValueError(
-                    f"Line {line_num}: row {row} out of range 0..{MAX_ROWS - 1}"
+                    f"Line {line_num}: row {row} out of range 0..{frame_height - 1}"
                 )
 
             if not (0 <= channel < MAX_CHANNELS):
@@ -83,8 +76,18 @@ def rebuild_frames(
             ch_rows[row] = data_str
 
     if expected_width is None:
-        print("No data found.")
-        return
+        raise ValueError("No data found.")
+
+    return frames, expected_width
+
+
+def rebuild_frames(
+    input_file: str, output_dir: str, fill_missing_with_zeros: bool = True
+):
+    frames, expected_width = read_frames(input_file)
+
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
 
     zero_row = "0" * expected_width
 
@@ -93,7 +96,7 @@ def rebuild_frames(
         rows = frames[channel]
 
         with out_file.open("w", encoding="utf-8") as out:
-            for row in range(MAX_ROWS):
+            for row in range(frame_height):
                 if row in rows:
                     out.write(rows[row] + "\n")
                 else:
@@ -105,9 +108,106 @@ def rebuild_frames(
         print(f"Wrote {out_file}")
 
 
-if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python rebuild_channels.py input.txt output_dir")
-        sys.exit(1)
+def build_channel_array(
+    rows: dict[int, str], width: int, fill_missing_with_zeros: bool = True
+) -> np.ndarray:
+    arr = np.zeros((frame_height, width), dtype=np.uint8)
 
-    rebuild_frames(sys.argv[1], sys.argv[2])
+    for row in range(frame_height):
+        if row in rows:
+            arr[row] = np.fromiter(
+                (int(c) for c in rows[row]), dtype=np.uint8, count=width
+            )
+        else:
+            if not fill_missing_with_zeros:
+                raise ValueError(f"Missing row {row}")
+            # already zero-filled
+
+    return arr
+
+
+def visualize_frames(input_file: str, fill_missing_with_zeros: bool = True):
+    frames, width = read_frames(input_file)
+    channels = sorted(frames)
+
+    if not channels:
+        raise ValueError("No channels found.")
+
+    arrays = {
+        ch: build_channel_array(frames[ch], width, fill_missing_with_zeros)
+        for ch in channels
+    }
+
+    state = {"index": 0}
+
+    fig, ax = plt.subplots()
+    img = ax.imshow(
+        arrays[channels[state["index"]]], cmap="gray", interpolation="nearest"
+    )
+    ax.set_title(f"Channel {channels[state['index']]}")
+    ax.set_xlabel("Column")
+    ax.set_ylabel("Row")
+
+    def update():
+        ch = channels[state["index"]]
+        img.set_data(arrays[ch])
+        ax.set_title(f"Channel {ch}")
+        fig.canvas.draw_idle()
+
+    def on_key(event):
+        if event.key == "right":
+            state["index"] = (state["index"] + 1) % len(channels)
+            update()
+        elif event.key == "left":
+            state["index"] = (state["index"] - 1) % len(channels)
+            update()
+
+    fig.canvas.mpl_connect("key_press_event", on_key)
+    plt.show()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Rebuild channel frames from bitstring+metadata input."
+    )
+    parser.add_argument("input_file", help="Input text file")
+    parser.add_argument(
+        "output_dir",
+        nargs="?",
+        help="Output directory for per-channel files (required unless --visualize-only is used)",
+    )
+    parser.add_argument(
+        "--visualize",
+        action="store_true",
+        help="Open an interactive viewer. Use left/right arrow keys to switch channels.",
+    )
+    parser.add_argument(
+        "--height",
+        "-r",
+        type=int,
+        required=True,
+        help="Frame height.",
+    )
+    parser.add_argument(
+        "--visualize-only",
+        action="store_true",
+        help="Only visualize; do not write output files.",
+    )
+    parser.add_argument(
+        "--no-fill-missing",
+        action="store_true",
+        help="Error out if a row is missing instead of filling it with zeros.",
+    )
+
+    args = parser.parse_args()
+    fill_missing_with_zeros = not args.no_fill_missing
+    frame_height = args.height
+
+    if not args.visualize_only and args.output_dir is None:
+        parser.error("output_dir is required unless --visualize-only is used")
+
+    if not args.visualize_only:
+        rebuild_frames(args.input_file, args.output_dir, fill_missing_with_zeros)
+
+    if args.visualize or args.visualize_only:
+        visualize_frames(args.input_file, fill_missing_with_zeros)
