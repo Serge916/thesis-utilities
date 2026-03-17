@@ -142,7 +142,11 @@ def visualize_frames(input_file: str, fill_missing_with_zeros: bool = True):
 
     fig, ax = plt.subplots()
     img = ax.imshow(
-        arrays[channels[state["index"]]], cmap="gray", interpolation="nearest"
+        arrays[channels[state["index"]]],
+        cmap="gray",
+        interpolation="nearest",
+        vmax=1,
+        vmin=0,
     )
     ax.set_title(f"Channel {channels[state['index']]}")
     ax.set_xlabel("Column")
