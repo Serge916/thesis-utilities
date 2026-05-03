@@ -38,8 +38,8 @@ def split_frames(input_file, output_dir):
                     start = row * WIDTH
                     end = start + WIDTH
 
-                    row_ch0 = "".join(ch0[start:end])
-                    row_ch1 = "".join(ch1[start:end])
+                    row_ch0 = "".join(reversed(ch0[start:end]))
+                    row_ch1 = "".join(reversed(ch1[start:end]))
 
                     out.write(row_ch0 + row_ch1 + "\n")
 
