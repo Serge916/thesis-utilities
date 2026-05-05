@@ -116,9 +116,14 @@ def format_merged_vhdl_entries(
 
     entries = []
     for word_idx in range(num_words):
+        # Reverse channel order because VHDL concatenation places the leftmost
+        # operand in the most significant bits.
+        #
+        # This makes channel/index 0 occupy the least significant channel-word
+        # inside the merged output word.
         concat_words = " & ".join(
             format_hex_word(packed_per_channel[ch][word_idx], word_bits)
-            for ch in range(len(packed_per_channel))
+            for ch in reversed(range(len(packed_per_channel)))
         )
         entries.append(f"    {word_idx} => {concat_words}")
 
